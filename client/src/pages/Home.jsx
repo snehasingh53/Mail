@@ -18,11 +18,9 @@ const Home = () => {
               {user ? user.username : 'Guest'}
             </Typography>
             <Typography variant="body1" paragraph>
-              This is a simple homepage using Material UI with a Navbar component imported from a separate file.
+              This is a simple homepage for MailServer. This uses IMAP and SMTP .
             </Typography>
-            <Button variant="contained" color="primary">
-              Learn More
-            </Button>
+            
           </Box>
         </Container>
       </main>

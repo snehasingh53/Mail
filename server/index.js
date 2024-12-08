@@ -50,6 +50,8 @@ const transporter = nodemailer.createTransport({
 });
 
 
+
+
 // Sign-up route with email sending after successful registration
 app.post("/signup", async (req, res) => {
     try {
@@ -127,6 +129,30 @@ app.get('/user', (req, res) => {
     }
 });
 
+// Endpoint to send an email (custom endpoint for sending emails)
+app.post("/send-email", async (req, res) => {
+    const { to, subject, text, html } = req.body;
+
+    if (!to || !subject || !text) {
+        return res.status(400).json({ error: "Missing required fields" });
+    }
+
+    try {
+        const emailResponse = await sendEmail(to, subject, text, html);
+        res.status(200).json({
+            status: 'success',
+            message: 'Email sent successfully',
+            emailResponse,
+        });
+    } catch (error) {
+        console.error('Email send error:', error);
+        res.status(500).json({
+            status: 'error',
+            message: 'Failed to send email',
+            error: error.message,
+        });
+    }
+});
 app.get('/fetch-emails', async (req, res) => {
     try {
         console.log('Manual email fetch initiated');

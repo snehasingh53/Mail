@@ -1,10 +1,13 @@
+// services/EmailService.js
 import { ImapFlow } from 'imapflow';
 import { simpleParser } from 'mailparser';
 import dotenv from 'dotenv';
+import FetchedEmail from './model/FetchedEmail.js';
+
 
 dotenv.config();
 
-class emailService {
+class EmailService {
     constructor() {
         this.client = null;
     }
@@ -17,11 +20,12 @@ class emailService {
             secure: true,
             auth: {
                 user: process.env.EMAIL_USER,
-                pass: process.env.EMAIL_PASS
-            }
+                pass: process.env.EMAIL_PASS,
+            },
         });
 
         const fetchedEmails = [];
+        const maxEmails = 5;  // Set a maximum number of emails to fetch
 
         try {
             // Connect to the IMAP server
@@ -30,7 +34,7 @@ class emailService {
 
             // Lock the mailbox to prevent concurrent access
             const lock = await client.getMailboxLock('INBOX');
-            
+
             try {
                 // Fetch messages
                 for await (let message of client.fetch('1:*', { 
@@ -40,21 +44,32 @@ class emailService {
                     try {
                         // Parse the email
                         const parsed = await simpleParser(message.source);
-                        
-                        // Create email object with only the required fields
+
+                        // Create email object with necessary fields
                         const emailDetails = {
-                            id: message.seq,
+                            to: parsed.to.text, 
+                            from: parsed.from.text,
                             subject: parsed.subject,
-                            from: parsed.from.text
+                            body: parsed.text,  // Use parsed.text for the plain-text body
+                            date: new Date(parsed.date),
+                            isRead: false,  // Default to unread
+                            starred: false,  // Default to not starred
+                            type: 'inbox',  // You can change it if the email is from another folder
                         };
 
-                        fetchedEmails.push(emailDetails);
+                        // Save the email to the database
+                        const newFetchedEmail = new FetchedEmail(emailDetails);
+                        await newFetchedEmail.save();
+
+                        fetchedEmails.push(emailDetails);  // Add to the fetched emails array
 
                         // Log email details
-                        console.log('Fetched Email:', {
-                            subject: emailDetails.subject,
-                            from: emailDetails.from
-                        });
+                        console.log('Fetched Email:', emailDetails);
+
+                        // Break the loop if we've reached the max number of emails
+                        if (fetchedEmails.length >= maxEmails) {
+                            break;
+                        }
                     } catch (parseError) {
                         console.error('Error parsing email:', parseError);
                     }
@@ -64,7 +79,7 @@ class emailService {
                 lock.release();
             }
 
-            return fetchedEmails; // Return the fetched emails in the desired format
+            return fetchedEmails;
         } catch (error) {
             console.error('Error fetching emails:', error);
             throw error;
@@ -76,4 +91,4 @@ class emailService {
 }
 
 // Export an instance of the EmailService
-export default new emailService();
+export default new EmailService();

@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, useOutletContext } from 'react-router-dom';
 import useApi from '../hooks/useApi';
 import { API_URLS } from '../services/api.urls';
-import { Box, List, Checkbox } from '@mui/material';
+import { Box, List, Checkbox, CircularProgress, Typography } from '@mui/material';
 import Email from './Email';
 import { DeleteOutline } from '@mui/icons-material';
 import NoMails from './common/NoMails';
@@ -11,6 +11,8 @@ import { EMPTY_TABS } from '../constants/constant';
 const Emails = () => {
     const [starredEmail, setStarredEmail] = useState(false);
     const [selectedEmails, setSelectedEmails] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
 
     const { openDrawer } = useOutletContext();
     const { type } = useParams();
@@ -20,8 +22,20 @@ const Emails = () => {
     const moveEmailsToBin = useApi(API_URLS.moveEmailsToBin);
 
     useEffect(() => {
-        getEmailsService.call({}, type);
-    }, [type, starredEmail])
+        const fetchEmails = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+                await getEmailsService.call({}, type);
+            } catch (err) {
+                setError(err.message);
+            } finally {
+                setLoading(false);
+            }
+        };
+
+        fetchEmails();
+    }, [type, starredEmail]);
 
     const selectAllEmails = (e) => {
         if (e.target.checked) {
@@ -30,22 +44,26 @@ const Emails = () => {
         } else {
             setSelectedEmails([]);
         }
-    }
+    };
 
-    const deleteSelectedEmails = () => {
+    const deleteSelectedEmails = async () => {
         if (type === 'bin') {
-            deleteEmailsService.call(selectedEmails);
+            await deleteEmailsService.call(selectedEmails);
         } else {
-            moveEmailsToBin.call(selectedEmails);
+            await moveEmailsToBin.call(selectedEmails);
         }
         setStarredEmail(prevState => !prevState);
-    }
+        setSelectedEmails([]); // Clear selection after action
+    };
+
+    if (loading) return <CircularProgress />;
+    if (error) return <Typography color="error">{error}</Typography>;
 
     return (
-        <Box style={openDrawer ? { marginLeft: 250, width: '100%' } : { width: '100%' } }>
+        <Box style={openDrawer ? { marginLeft: 250, width: '100%' } : { width: '100%' }}>
             <Box style={{ padding: '20px 10px 0 10px', display: 'flex', alignItems: 'center' }}>
-                <Checkbox size="small" onChange={(e) => selectAllEmails(e)} />
-                <DeleteOutline onClick={(e) => deleteSelectedEmails(e)} />
+                <Checkbox size="small" onChange={selectAllEmails} />
+                <DeleteOutline onClick={deleteSelectedEmails} />
             </Box>
             <List>
                 {
@@ -65,7 +83,7 @@ const Emails = () => {
                     <NoMails message={EMPTY_TABS[type]} />
             }
         </Box>
-    )
-}
+    );
+};
 
 export default Emails;
