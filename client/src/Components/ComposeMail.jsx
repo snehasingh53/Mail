@@ -1,152 +1,176 @@
-import { React, useState } from 'react';
-import { Dialog, Box, TextField, Typography, styled, IconButton, Button, InputBase } from '@mui/material';
-import CloseIcon from '@mui/icons-material/Close';
-import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import { useState } from 'react';
+import { Dialog, styled, Typography, Box, InputBase, TextField, Button } from '@mui/material'; 
+import { Close, DeleteOutline } from '@mui/icons-material';
+import useApi from '../hooks/useApi';
+import { API_URLS } from '../services/api.urls';
+import { toast } from 'react-toastify';
 
-// Styles for Dialog, Header, Footer, and RecipientWrapper
-const dialogStyled = {
-  height: '90%',
-  width: '80%',
-  maxWidth: '100%',
-  maxHeight: '100%',
-  boxShadow: 'none',
-  borderRadius: '10px 10px 0 0',
+const dialogStyle = {
+    height: '90%',
+    width: '80%',
+    maxWidth: '100%',
+    maxHeight: '100%',
+    boxShadow: 'none',
+    borderRadius: '10px 10px 0 0',
 };
 
-const Header = styled(Box)(() => ({
-  display: 'flex',
-  justifyContent: 'space-between',
-  background: '#f2f6fc',
-  padding: '15px',
-  '& > p': {
-    fontSize: 16,
-    fontWeight: 600,
-  },
-}));
-
-const RecipientWrapper = styled(Box)(() => ({
-  display: 'flex',
-  flexDirection: 'column',
-  padding: '0 15px',
-  '& > div': {
-    fontSize: 14,
-    marginTop: '10px',
-    marginBottom: '10px',
-    '& .MuiInputBase-root': {
-      borderBottom: '1px solid #f5f5f5',
-      padding: '10px 5px',
-    },
-  },
-}));
-
-const Footer = styled(Box)(() => ({
-  display: 'flex',
-  justifyContent: 'space-between',
-  padding: '10px 15px',
-  alignItems: 'center',
-}));
-
-// ComposeMail Component
-const ComposeMail = ({ openDialog, handleClose }) => {
-  const [data, setData] = useState({});
-
-  const config = {
-    Host: "smtp.elasticemail.com",
-    Username: import.meta.env.REACT_APP_USERNAME,
-    Password: import.meta.env.REACT_APP_PASSWORD,
-    PORT: 2525,
-  };
-
-  // Function to handle form input changes
-  const onValueChange = (e) => {
-    setData({ ...data, [e.target.name]: e.target.value });
-  };
-
-  // Function to send the email using SMTP
-  const sendMail = async (e) => {
-    e.preventDefault();
-  
-    // Ensure we have all necessary data
-    if (!data.to || !data.subject || !data.body) {
-      alert("Please fill all fields");
-      return;
+const Header = styled(Box)`
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 15px;
+    background: #f2f6fc;
+    & > p {
+        font-size: 14px;
+        font-weight: 500;
     }
-  
-    try {
-      // Send the email request to the backend
-      const response = await fetch('http://localhost:3001/send-email', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          to: data.to,
-          subject: data.subject,
-          text: data.body, // Make sure to use 'text' here to match the backend
-        }),
-      });
-  
-      const result = await response.json();
-  
-      // If the email is sent successfully
-      if (response.status === 200) {
-        alert("Email sent successfully");
-        handleClose(); // Close the compose mail dialog
-      } else {
-        alert("Error sending email: " + result.error);
-      }
-    } catch (error) {
-      console.error("Error:", error);
-      alert("Error sending email: " + error.message);
+`;
+
+const RecipientWrapper = styled(Box)`
+    display: flex;
+    flex-direction: column;
+    padding: 0 15px;
+    & > div {
+        font-size: 14px;
+        border-bottom: 1px solid #F5F5F5;
+        margin-top: 10px;
     }
-  };
-  
+`;
 
-  return (
-    <Dialog open={openDialog} PaperProps={{ sx: dialogStyled }}>
-      <Box>
-        <Header>
-          <Typography>New Message</Typography>
-          <IconButton size="small" edge="end" onClick={handleClose}>
-            <CloseIcon fontSize="small" />
-          </IconButton>
-        </Header>
-      </Box>
+const Footer = styled(Box)`
+    display: flex;
+    justify-content: space-between;
+    padding: 10px 15px;
+    align-items: center;
+`;
 
-     
-  
-        <RecipientWrapper>
-        <InputBase placeholder="Recipients" name="to"
-          onChange={(e)=>onValueChange(e)} />
-        <InputBase placeholder="Subject" name="subject"
-        onChange={(e)=>onValueChange(e)}  />
-      </RecipientWrapper>
-   
+const SendButton = styled(Button)`
+    background: #0B57D0;
+    color: #fff;
+    font-weight: 500;
+    text-transform: none;
+    border-radius: 18px;
+    width: 100px;
+    &:hover {
+        background: #084aa6;
+    }
+`;
 
-      <TextField
-        multiline
-        rows={20}
-        sx={{ "& .MuiOutlinedInput-notchedOutline": { border: "none" } }}
-        name="body"
-        onChange={onValueChange}
-        fullWidth
-        margin="normal"
-      />
+const ComposeMail = ({ open, setOpenDrawer }) => {
+    const [data, setData] = useState({ to: '', subject: '', body: '' });
+    const sentEmailService = useApi(API_URLS.saveSentEmails);
+    const saveDraftService = useApi(API_URLS.saveDraftEmails);
 
-      <Footer>
-        <Button
-          variant="contained"
-          onClick={sendMail}
-          sx={{ borderRadius: "18px", padding: "10px 20px", textTransform: "none" }}
+    const emailConfig = {
+        Host: "smtp.elasticemail.com",
+        Username: import.meta.env.VITE_APP_USERNAME,
+        Password: import.meta.env.VITE_APP_PASSWORD,
+        Port: 2525,
+    };
+
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setData((prevData) => ({ ...prevData, [name]: value }));
+    };
+
+    const handleSendEmail = async (e) => {
+        e.preventDefault();
+
+        if (window.Email) {
+            try {
+                const message = await window.Email.send({
+                    ...emailConfig,
+                    To: data.to,
+                    From: "ssnehasingh53@gmail.com",
+                    Subject: data.subject,
+                    Body: data.body,
+                });
+                toast.success(message);
+            } catch (error) {
+                toast.error("Failed to send email.");
+                return;
+            }
+        }
+
+        const payload = {
+            ...data,
+            from: "ssnehasingh53@gmail.com",
+            date: new Date(),
+            image: '',
+            name: 'Sneha Singh',
+            starred: false,
+            type: 'sent',
+        };
+
+        await sentEmailService.call(payload);
+
+        if (!sentEmailService.error) {
+            setOpenDrawer(false);
+            setData({ to: '', subject: '', body: '' });
+        } else {
+            toast.error("Failed to save email to sent items.");
+        }
+    };
+
+    const handleCloseComposeMail = async (e) => {
+        e.preventDefault();
+
+        const payload = {
+            ...data,
+            from: "ssnehasingh53@gmail.com",
+            date: new Date(),
+            image: '',
+            name: 'Sneha Singh',
+            starred: false,
+            type: 'drafts',
+        };
+
+        await saveDraftService.call(payload);
+
+        if (!saveDraftService.error) {
+            setOpenDrawer(false);
+            setData({ to: '', subject: '', body: '' });
+        } else {
+            toast.error("Failed to save email as draft.");
+        }
+    };
+
+    return (
+        <Dialog
+            open={open}
+            PaperProps={{ sx: dialogStyle }}
         >
-          Send
-        </Button>
-        <IconButton size="small" onClick={handleClose}>
-          <DeleteOutlineIcon fontSize="small" />
-        </IconButton>
-      </Footer>
-    </Dialog>
-  );
+            <Header>
+                <Typography>New Message</Typography>
+                <Close fontSize="small" onClick={handleCloseComposeMail} />
+            </Header>
+            <RecipientWrapper>
+                <InputBase 
+                    placeholder="Recipients" 
+                    name="to" 
+                    onChange={handleInputChange} 
+                    value={data.to} 
+                />
+                <InputBase 
+                    placeholder="Subject" 
+                    name="subject" 
+                    onChange={handleInputChange} 
+                    value={data.subject} 
+                />
+            </RecipientWrapper>
+            <TextField 
+                multiline
+                rows={20}
+                sx={{ '& .MuiOutlinedInput-notchedOutline': { border: 'none' } }}
+                name="body"
+                onChange={handleInputChange}
+                value={data.body}
+            />
+            <Footer>
+                <SendButton onClick={handleSendEmail}>Send</SendButton>
+                <DeleteOutline onClick={() => setOpenDrawer(false)} />
+            </Footer>
+        </Dialog>
+    );
 };
 
 export default ComposeMail;

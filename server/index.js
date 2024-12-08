@@ -8,6 +8,7 @@ import UserModel from './model/User.js';  // Correct path for your model
 import Connection from './Database/db.js';
 import nodemailer from 'nodemailer';  // Import nodemailer
 import emailService from './emailService.js';
+import routes from "./routes/route.js"
 
 dotenv.config();
 
@@ -48,25 +49,6 @@ const transporter = nodemailer.createTransport({
     },
 });
 
-// Function to send email using Nodemailer
-const sendEmail = async (to, subject, text, html) => {
-    const mailOptions = {
-        from: process.env.EMAIL_USER,  // sender address
-        to,  // recipient address
-        subject,  // Subject line
-        text,  // plain text body
-        html,  // html body (optional)
-    };
-
-    try {
-        const info = await transporter.sendMail(mailOptions);
-        console.log('Email sent:', info.response);
-        return info;
-    } catch (error) {
-        console.error('Error sending email:', error);
-        throw error;
-    }
-};
 
 // Sign-up route with email sending after successful registration
 app.post("/signup", async (req, res) => {
@@ -145,30 +127,6 @@ app.get('/user', (req, res) => {
     }
 });
 
-// Endpoint to send an email (custom endpoint for sending emails)
-app.post("/send-email", async (req, res) => {
-    const { to, subject, text, html } = req.body;
-
-    if (!to || !subject || !text) {
-        return res.status(400).json({ error: "Missing required fields" });
-    }
-
-    try {
-        const emailResponse = await sendEmail(to, subject, text, html);
-        res.status(200).json({
-            status: 'success',
-            message: 'Email sent successfully',
-            emailResponse,
-        });
-    } catch (error) {
-        console.error('Email send error:', error);
-        res.status(500).json({
-            status: 'error',
-            message: 'Failed to send email',
-            error: error.message,
-        });
-    }
-});
 app.get('/fetch-emails', async (req, res) => {
     try {
         console.log('Manual email fetch initiated');
@@ -187,6 +145,8 @@ app.get('/fetch-emails', async (req, res) => {
         });
     }
 });
+
+app.use("/landing", routes)
 
 
 

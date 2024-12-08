@@ -3,7 +3,8 @@ import Header from "../Components/Header";
 import SideBar from "../Components/Sidebar";
 import { Box, styled } from "@mui/material";
 import { Outlet } from "react-router-dom";
-import EmailList from "../Components/EmailList";
+import SuspenseLoader from "../Components/common/SuspenseLoader";
+
 
 const Wrapper = styled(Box)({
     display: 'flex',
@@ -19,6 +20,7 @@ const Content = styled(Box)({
 const MainContent = styled(Box)({
     display: 'flex',
     flexGrow: 1,
+    paddingTop: '64px', // Adjust this value based on the height of your Header
 });
 
 const Landing = () => {
@@ -30,19 +32,17 @@ const Landing = () => {
 
     return (
         <>
-            <Header toggleDrawer={toggleDrawer} />
-            <Wrapper>
-                <SideBar toggleDrawer={toggleDrawer} openDrawer={openDrawer} />
-                <Content>
-                    <MainContent>
-                        <Suspense fallback={<div>Loading...</div>}>
-                            <Outlet context={{ openDrawer }} />
-                        </Suspense>
-                        <EmailList />
-                    </MainContent>
-                </Content>
-            </Wrapper>
-        </>
+        <Header toggleDrawer={toggleDrawer} />
+        <Wrapper>
+            <SideBar toggleDrawer={toggleDrawer} openDrawer={openDrawer} />
+            <MainContent>
+                    <Suspense fallback={<SuspenseLoader />}>
+                        <Outlet context={{ openDrawer }} /> {/* Pass openDrawer to child routes */}
+                    </Suspense>
+                </MainContent>
+        </Wrapper>
+    </>
+       
     );
 };
 
